@@ -1,5 +1,10 @@
-const panoramaImage = new PANOLENS.ImagePanorama("images/image2.jpg");
+// Khởi tạo panoramaImage
+const panoramaImage = new PANOLENS.ImagePanorama("images/image.jpg");
+
+// Lấy container để chứa ảnh
 const imageContainer = document.querySelector(".image-container");
+
+// Khởi tạo viewer và thêm panoramaImage vào viewer
 const viewer = new PANOLENS.Viewer({
   container: imageContainer,
   autoRotate: true,
@@ -8,21 +13,27 @@ const viewer = new PANOLENS.Viewer({
 });
 viewer.add(panoramaImage);
 
-let gamma = 0; // Giá trị gamma của cảm biến gia tốc
-let beta = 0; // Giá trị beta của cảm biến gia tốc
-const gammaThreshold = 2; // Ngưỡng giá trị tuyệt đối gamma để cập nhật lại ảnh
-const betaThreshold = 2; // Ngưỡng giá trị tuyệt đối beta để cập nhật lại ảnh
+// Khởi tạo các biến để lưu trữ góc quay của điện thoại
+let gamma = 0;
+let beta = 0;
 
-// Hàm xử lý các giá trị của cảm biến gia tốc và di chuyển ảnh
+// Đăng ký hàm xử lý sự kiện "deviceorientation"
+window.addEventListener("deviceorientation", handleOrientation);
+
 function handleOrientation(event) {
-  const newGamma = event.gamma; // Giá trị gamma mới của cảm biến gia tốc
-  const newBeta = event.beta; // Giá trị beta mới của cảm biến gia tốc
+  // Lấy giá trị gamma và beta từ event
+  const newGamma = event.gamma;
+  const newBeta = event.beta;
 
-  // Xác định sự khác biệt giữa giá trị mới và cũ của gamma và beta
-  const gammaDiff = Math.abs(newGamma - gamma);
-  const betaDiff = Math.abs(newBeta - beta);
+  // Tính toán sự khác biệt giữa gamma và beta hiện tại và giá trị mới
+  const gammaDiff = Math.abs(gamma - newGamma);
+  const betaDiff = Math.abs(beta - newBeta);
 
-  // Nếu giá trị tuyệt đối của sự khác biệt lớn hơn ngưỡng, cập nhật
+  // Đặt ngưỡng để kiểm tra sự khác biệt
+  const gammaThreshold = 2;
+  const betaThreshold = 2;
+
+  // Nếu sự khác biệt lớn hơn ngưỡng, thì cập nhật gamma và beta mới và thực hiện di chuyển ảnh
   if (gammaDiff > gammaThreshold || betaDiff > betaThreshold) {
     gamma = newGamma;
     beta = newBeta;
@@ -35,6 +46,3 @@ function handleOrientation(event) {
     });
   }
 }
-
-// Gán hàm xử lý sự kiện "deviceorientation" vào window để lắng nghe các thay đổi
-window.addEventListener("deviceorientation", handleOrientation);
