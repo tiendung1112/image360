@@ -13,6 +13,31 @@ const viewer = new PANOLENS.Viewer({
 });
 viewer.add(panoramaImage);
 
+if (window.DeviceOrientationEvent) {
+  // Yêu cầu quyền truy cập vào cảm biến
+  navigator.permissions.query({ name: 'accelerometer' }).then(result => {
+    if (result.state === 'granted') {
+      console.log('Quyền truy cập cảm biến đã được cấp');
+      // Bắt đầu sử dụng sự kiện "deviceorientation"
+    } else if (result.state === 'prompt') {
+      console.log('Người dùng sẽ xác nhận quyền truy cập cảm biến');
+      // Yêu cầu người dùng xác nhận quyền truy cập cảm biến
+      navigator.permissions.request({ name: 'accelerometer' }).then(result => {
+        if (result.state === 'granted') {
+          console.log('Quyền truy cập cảm biến đã được cấp');
+          // Bắt đầu sử dụng sự kiện "deviceorientation"
+        } else {
+          console.log('Quyền truy cập cảm biến bị từ chối');
+        }
+      });
+    } else {
+      console.log('Quyền truy cập cảm biến bị từ chối');
+    }
+  });
+} else {
+  console.log('Thiết bị của bạn không hỗ trợ sự kiện "deviceorientation"');
+}
+
 // Khởi tạo các biến để lưu trữ góc quay của điện thoại
 let gamma = 0;
 let beta = 0;
