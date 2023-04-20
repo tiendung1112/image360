@@ -1,5 +1,5 @@
 // Khởi tạo panoramaImage
-const panoramaImage = new PANOLENS.ImagePanorama("images/image.jpg");
+const panoramaImage = new PANOLENS.ImagePanorama("images/image2.jpg");
 
 // Lấy container để chứa ảnh
 const imageContainer = document.querySelector(".image-container");
