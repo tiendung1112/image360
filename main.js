@@ -1,48 +1,37 @@
-// Lấy DOM container và khởi tạo Panolens Viewer
-const container = document.querySelector('.image-container');
-const viewer = new PANOLENS.Viewer({ container });
+// Tạo hình ảnh panorama
+const panoramaImage = new PANOLENS.ImagePanorama('images/image2.jpg');
 
-// Khởi tạo ảnh panorama
-const panorama = new PANOLENS.ImagePanorama('images/image2.jpg');
-viewer.add(panorama);
+// Lấy phần tử chứa hình ảnh
+const imageContainer = document.querySelector('.image-container');
 
-// Xin quyền truy cập cảm biến
-if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-  DeviceOrientationEvent.requestPermission()
-    .then((permissionState) => {
-      if (permissionState === 'granted') {
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
-    })
-    .catch(console.error);
-} else {
+// Tạo đối tượng Viewer
+const viewer = new PANOLENS.Viewer({
+  container: imageContainer,
+  autoRotate: true,
+  autoRotateSpeed: 0.3,
+  controlBar: false
+});
+
+// Thêm hình ảnh panorama vào viewer
+viewer.add(panoramaImage);
+
+// Xin quyền truy cập đến cảm biến định hướng trên thiết bị
+if (window.DeviceOrientationEvent) {
   window.addEventListener('deviceorientation', handleOrientation);
 }
 
-// Xử lý sự kiện animate
+// Hàm xử lý sự kiện cập nhật từ cảm biến định hướng
 function handleOrientation(event) {
-  // Lấy giá trị alpha, beta, gamma
-  const { alpha, beta, gamma } = event;
+  // Lấy giá trị alpha, beta và gamma từ sự kiện cập nhật
+  const alpha = event.alpha;
+  const beta = event.beta;
+  const gamma = event.gamma;
 
-  // Tính toán góc quay và xoay ảnh
-  const angle = (beta / 180) * Math.PI;
-  panorama.rotation.y = angle;
+  // Tính toán góc xoay theo trục x, y và z của hình ảnh panorama
+  const x = (beta - 90) * Math.PI / 180;
+  const y = -gamma * Math.PI / 180;
+  const z = (alpha + 180) * Math.PI / 180;
 
-  // Lật ảnh nếu thiết bị nằm ngang
-  if (Math.abs(gamma) < 10) {
-    panorama.rotation.y += Math.PI;
-  }
+  // Cập nhật góc xoay của hình ảnh panorama
+  panoramaImage.rotation.set(x, y, z);
 }
-
-viewer.addEventListener('animate', () => {
-  // Cập nhật hướng thiết bị
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then((permissionState) => {
-        if (permissionState === 'granted') {
-          window.addEventListener('deviceorientation', handleOrientation);
-        }
-      })
-      .catch(console.error);
-  }
-});
