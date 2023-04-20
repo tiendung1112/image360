@@ -29,7 +29,8 @@ function handleDeviceOrientation(event) {
 function DeviceOrientationControls(object) {
   const scope = this;
   this.object = object;
-  this.object.rotation.reorder('YXZ');
+  console.log(this.object.rotation)
+  // this.object.rotation.reorder('YXZ');
   this.enabled = true;
   this.deviceOrientation = null;
   this.screenOrientation = 0;
