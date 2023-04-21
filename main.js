@@ -1,5 +1,5 @@
 // Khởi tạo panoramaImage
-const panoramaImage = new PANOLENS.ImagePanorama("images/image.jpg");
+const panoramaImage = new PANOLENS.ImagePanorama("images/image2.jpg");
 
 // Lấy container để chứa ảnh
 const imageContainer = document.querySelector(".image-container");
@@ -8,7 +8,7 @@ const imageContainer = document.querySelector(".image-container");
 const viewer = new PANOLENS.Viewer({
   container: imageContainer,
   autoRotate: true,
-  autoRotateSpeed: 0.3,
+  autoRotateSpeed: 0.5,
   controlBar: false,
 });
 viewer.add(panoramaImage);
@@ -44,29 +44,54 @@ if (window.DeviceOrientationEvent) {
   console.log('Thiết bị của bạn không hỗ trợ sự kiện "deviceorientation"');
 }
 
+let lastOrientation = null;
+let orientationOffset = new THREE.Quaternion();
+
 function handleOrientation(event) {
   // Lấy giá trị gamma và beta từ event
-  const newGamma = event.gamma;
-  const newBeta = event.beta;
+  const gamma = event.gamma;
+  const beta = event.beta;
 
-  // Tính toán sự khác biệt giữa gamma và beta hiện tại và giá trị mới
-  const gammaDiff = Math.abs(gamma - newGamma);
-  const betaDiff = Math.abs(beta - newBeta);
-
-  // Đặt ngưỡng để kiểm tra sự khác biệt
-  const gammaThreshold = 2;
-  const betaThreshold = 2;
-
-  // Nếu sự khác biệt lớn hơn ngưỡng, thì cập nhật gamma và beta mới và thực hiện di chuyển ảnh
-  if (gammaDiff > gammaThreshold || betaDiff > betaThreshold) {
-    gamma = newGamma;
-    beta = newBeta;
-    requestAnimationFrame(() => {
-      // Tính toán góc quay mới của ảnh dựa trên các giá trị gamma và beta mới
-      const rotationY = THREE.Math.degToRad(beta);
-      const rotationX = THREE.Math.degToRad(-gamma);
-      const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(rotationY, rotationX, 0, "YZX"));
-      panoramaImage.setRotationFromQuaternion(quaternion);
-    });
+  // Nếu đây là lần lấy mẫu đầu tiên hoặc lastOrientation bị null thì gán lastOrientation bằng giá trị hiện tại
+  if (!lastOrientation) {
+    lastOrientation = new THREE.Vector3(beta, gamma, 0);
+    return;
   }
+
+  // Tính toán giá trị quay vòng mới từ giá trị gamma và beta hiện tại
+  const currentOrientation = new THREE.Vector3(beta, gamma, 0);
+
+  // Tính toán sai khác giữa giá trị quay vòng mới và giá trị quay vòng trước đó
+  const deltaOrientation = new THREE.Vector3().subVectors(currentOrientation, lastOrientation);
+
+  // Tạo quaternion từ giá trị quay vòng mới và hiệu chỉnh nó để giảm thiểu sai khác giữa giá trị thực tế và giá trị được tính toán
+  const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+    THREE.Math.degToRad(deltaOrientation.x),
+    THREE.Math.degToRad(deltaOrientation.y),
+    0,
+    'XYZ'
+  ));
+  orientationOffset.multiply(quaternion);
+
+  // Cập nhật giá trị quay vòng trước đó
+  lastOrientation.copy(currentOrientation);
+
+  // Áp dụng giá trị quay vòng mới vào ảnh panoramaImage
+  requestAnimationFrame(() => {
+    panoramaImage.quaternion.copy(orientationOffset);
+  });
 }
+
+// function handleOrientation(event) {
+//   // Lấy giá trị alpha, beta và gamma từ event
+//   const alpha = THREE.Math.degToRad(event.alpha);
+//   const beta = THREE.Math.degToRad(event.beta);
+//   const gamma = THREE.Math.degToRad(event.gamma);
+
+//   // Tạo một quaternion từ các giá trị alpha, beta và gamma
+//   const quaternion = new THREE.Quaternion()
+//     .setFromEuler(new THREE.Euler(beta, alpha, -gamma, 'YZX'));
+
+//   // Cập nhật góc quay của ảnh với quaternion mới
+//   panoramaImage.quaternion.copy(quaternion);
+// }
