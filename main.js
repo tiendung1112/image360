@@ -16,6 +16,7 @@ viewer.add(panoramaImage);
 // Khởi tạo các biến để lưu trữ góc quay của điện thoại
 let gamma = 0;
 let beta = 0;
+let alpha = 0;
 
 if (window.DeviceOrientationEvent) {
   // Yêu cầu quyền truy cập vào cảm biến
@@ -51,15 +52,16 @@ function handleOrientation(event) {
   // Lấy giá trị gamma và beta từ event
   const gamma = event.gamma;
   const beta = event.beta;
+  const alpha = event.alpha;
 
   // Nếu đây là lần lấy mẫu đầu tiên hoặc lastOrientation bị null thì gán lastOrientation bằng giá trị hiện tại
   if (!lastOrientation) {
-    lastOrientation = new THREE.Vector3(beta, gamma, 0);
+    lastOrientation = new THREE.Vector3(beta, gamma, alpha);
     return;
   }
 
   // Tính toán giá trị quay vòng mới từ giá trị gamma và beta hiện tại
-  const currentOrientation = new THREE.Vector3(beta, gamma, 0);
+  const currentOrientation = new THREE.Vector3(beta, gamma, alpha);
 
   // Tính toán sai khác giữa giá trị quay vòng mới và giá trị quay vòng trước đó
   const deltaOrientation = new THREE.Vector3().subVectors(currentOrientation, lastOrientation);
@@ -68,7 +70,7 @@ function handleOrientation(event) {
   const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
     THREE.Math.degToRad(deltaOrientation.x),
     THREE.Math.degToRad(deltaOrientation.y),
-    0,
+    THREE.Math.degToRad(deltaOrientation.z),
     'XYZ'
   ));
   orientationOffset.multiply(quaternion);
