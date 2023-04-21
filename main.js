@@ -1,132 +1,72 @@
-// Yêu cầu quyền truy cập cảm biến
-if (window.DeviceOrientationEvent && typeof navigator.permissions !== "undefined") {
-  navigator.permissions.query({ name: "accelerometer" }).then(function (permissionStatus) {
-    if (permissionStatus.state === "granted") {
-      window.addEventListener("deviceorientation", DeviceOrientationControls);
-    } else if (permissionStatus.state === "prompt") {
-      navigator.permissions
-        .request({ name: "accelerometer" })
-        .then(function (permissionStatus) {
-          if (permissionStatus.state === "granted") {
-            window.addEventListener("deviceorientation", DeviceOrientationControls);
-          }
-        });
-    }
-  });
-}
+// Khởi tạo panoramaImage
+const panoramaImage = new PANOLENS.ImagePanorama("images/image.jpg");
 
-// Xử lý chuyển động
-function handleDeviceOrientation(event) {
-  // Lấy giá trị chuyển động trên trục X và Y
-  const alpha = event.alpha;
-  const beta = event.beta;
-
-  // Áp dụng chuyển động vào ảnh
-  panoramaImage.rotation.y = (alpha * Math.PI) / 180;
-  panoramaImage.rotation.x = ((beta - 90) * Math.PI) / 180;
-}
-
-function DeviceOrientationControls(object) {
-  const scope = this;
-  this.object = object;
-  console.log(this.object.rotation)
-  // this.object.rotation.reorder('YXZ');
-  this.enabled = true;
-  this.deviceOrientation = null;
-  this.screenOrientation = 0;
-  this.alphaOffset = 0; // radians
-  this.initialOffset = null;
-  const onDeviceOrientationChangeEvent = function ({ alpha, beta, gamma }) {
-    if (scope.initialOffset === null) {
-      scope.initialOffset = alpha;
-    }
-    alpha = alpha - scope.initialOffset;
-    if (alpha < 0) alpha += 360;
-    scope.deviceOrientation = { alpha, beta, gamma };
-  };
-  const onScreenOrientationChangeEvent = function () {
-    scope.screenOrientation = window.orientation || 0;
-  };
-  const onRegisterEvent = function () {
-    window.addEventListener('orientationchange', onScreenOrientationChangeEvent, false);
-    window.addEventListener('deviceorientation', onDeviceOrientationChangeEvent, false);
-  }.bind(this);
-  // The angles alpha, beta and gamma form a set of intrinsic Tait-Bryan angles of type Z-X'-Y''
-  const setObjectQuaternion = function () {
-    const zee = new THREE.Vector3(0, 0, 1);
-    const euler = new THREE.Euler();
-    const q0 = new THREE.Quaternion();
-    const q1 = new THREE.Quaternion(- Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // - PI/2 around the x-axis
-    return function (quaternion, alpha, beta, gamma, orient) {
-      euler.set(beta, alpha, - gamma, 'YXZ'); // 'ZXY' for the device, but 'YXZ' for us
-      quaternion.setFromEuler(euler); // orient the device
-      quaternion.multiply(q1); // camera looks out the back of the device, not the top
-      quaternion.multiply(q0.setFromAxisAngle(zee, - orient)); // adjust for screen orientation
-    };
-  }();
-  this.connect = function () {
-    onScreenOrientationChangeEvent(); // run once on load
-    // iOS 13+
-    if (window.DeviceOrientationEvent !== undefined && typeof window.DeviceOrientationEvent.requestPermission === 'function') {
-      window.DeviceOrientationEvent.requestPermission().then(function (response) {
-        if (response == 'granted') {
-          onRegisterEvent();
-        }
-      }).catch(function (error) {
-        console.error('THREE.DeviceOrientationControls: Unable to use DeviceOrientation API:', error);
-      });
-    } else {
-      onRegisterEvent();
-    }
-    scope.enabled = true;
-  };
-  this.disconnect = function () {
-    window.removeEventListener('orientationchange', onScreenOrientationChangeEvent, false);
-    window.removeEventListener('deviceorientation', onDeviceOrientationChangeEvent, false);
-    scope.enabled = false;
-    scope.deviceOrientation = null;
-    scope.initialOffset = null;
-
-  };
-  this.update = function ({ theta = 0 } = { theta: 0 }) {
-    if (scope.enabled === false) return;
-    const device = scope.deviceOrientation;
-    if (device) {
-      const alpha = device.alpha ? THREE.Math.degToRad(device.alpha) + scope.alphaOffset : 0; // Z
-
-      const beta = device.beta ? THREE.Math.degToRad(device.beta) : 0; // X'
-      const gamma = device.gamma ? THREE.Math.degToRad(device.gamma) : 0; // Y''
-      const orient = scope.screenOrientation ? THREE.Math.degToRad(scope.screenOrientation) : 0; // O
-      setObjectQuaternion(scope.object.quaternion, alpha + theta, beta, gamma, orient);
-    }
-  };
-  this.dispose = function () {
-    scope.disconnect();
-  };
-  this.getAlpha = function () {
-    const { deviceOrientation: device } = scope;
-    return device && device.alpha ? THREE.Math.degToRad(device.alpha) + scope.alphaOffset : 0;
-  };
-  this.getBeta = function () {
-    const { deviceOrientation: device } = scope;
-    return device && device.beta ? THREE.Math.degToRad(device.beta) : 0;
-  };
-};
-DeviceOrientationControls.prototype = Object.assign(Object.create(THREE.EventDispatcher.prototype), {
-  constructor: DeviceOrientationControls
-});
-
-// Khởi tạo Panorama
-const panoramaImage = new PANOLENS.ImagePanorama("images/image1.jpeg");
-
-// Khởi tạo Viewer
+// Lấy container để chứa ảnh
 const imageContainer = document.querySelector(".image-container");
+
+// Khởi tạo viewer và thêm panoramaImage vào viewer
 const viewer = new PANOLENS.Viewer({
   container: imageContainer,
   autoRotate: true,
   autoRotateSpeed: 0.3,
   controlBar: false,
 });
-
-// Thêm Panorama vào Viewer
 viewer.add(panoramaImage);
+
+// Khởi tạo các biến để lưu trữ góc quay của điện thoại
+let gamma = 0;
+let beta = 0;
+
+if (window.DeviceOrientationEvent) {
+  // Yêu cầu quyền truy cập vào cảm biến
+  navigator.permissions.query({ name: 'accelerometer' }).then(result => {
+    if (result.state === 'granted') {
+      console.log('Quyền truy cập cảm biến đã được cấp');
+      // Bắt đầu sử dụng sự kiện "deviceorientation"
+      window.addEventListener('deviceorientation', handleOrientation);
+    } else if (result.state === 'prompt') {
+      console.log('Người dùng sẽ xác nhận quyền truy cập cảm biến');
+      // Yêu cầu người dùng xác nhận quyền truy cập cảm biến
+      navigator.permissions.request({ name: 'accelerometer' }).then(result => {
+        if (result.state === 'granted') {
+          console.log('Quyền truy cập cảm biến đã được cấp');
+          // Bắt đầu sử dụng sự kiện "deviceorientation"
+          window.addEventListener('deviceorientation', handleOrientation);
+        } else {
+          console.log('Quyền truy cập cảm biến bị từ chối');
+        }
+      });
+    } else {
+      console.log('Quyền truy cập cảm biến bị từ chối');
+    }
+  });
+} else {
+  console.log('Thiết bị của bạn không hỗ trợ sự kiện "deviceorientation"');
+}
+
+function handleOrientation(event) {
+  // Lấy giá trị gamma và beta từ event
+  const newGamma = event.gamma;
+  const newBeta = event.beta;
+
+  // Tính toán sự khác biệt giữa gamma và beta hiện tại và giá trị mới
+  const gammaDiff = Math.abs(gamma - newGamma);
+  const betaDiff = Math.abs(beta - newBeta);
+
+  // Đặt ngưỡng để kiểm tra sự khác biệt
+  const gammaThreshold = 2;
+  const betaThreshold = 2;
+
+  // Nếu sự khác biệt lớn hơn ngưỡng, thì cập nhật gamma và beta mới và thực hiện di chuyển ảnh
+  if (gammaDiff > gammaThreshold || betaDiff > betaThreshold) {
+    gamma = newGamma;
+    beta = newBeta;
+    requestAnimationFrame(() => {
+      // Tính toán góc quay mới của ảnh dựa trên các giá trị gamma và beta mới
+      const rotationY = THREE.Math.degToRad(beta);
+      const rotationX = THREE.Math.degToRad(-gamma);
+      const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(rotationY, rotationX, 0, "YZX"));
+      panoramaImage.setRotationFromQuaternion(quaternion);
+    });
+  }
+}
